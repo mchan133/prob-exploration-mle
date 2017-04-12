@@ -7,9 +7,7 @@
 import pygame
 import statistics
 
-#import heuristic_search.astar as astar
 #from heuristic_search.gridfunctions import Grid
-import astar
 from gridfunctions import Grid
 
 
@@ -70,11 +68,19 @@ def create_grid(grid_obj):
     toggle_path = False
     path_step = -1
     mle_path = None
+
+    toggle_gt = False
+    gt_coords = grid_obj.gt_to_coords()
+
+    toggle_v = False
+    v_coords = []
+
+
     toggle_heatmap = False
-    KEY_PRESSED = None  # for registering held-down keys
 
     clock = pygame.time.Clock()
     median = statistics.median
+    KEY_PRESSED = None  # for registering held-down keys
 
     while True:
         # Poll for user events
@@ -107,12 +113,16 @@ def create_grid(grid_obj):
             grid_obj.step_grid() #TODO: show direction
         if result == 3:  # h
             toggle_heatmap = False if toggle_heatmap else True
-
+        if result == 4:  # e
+            while not grid_obj.step_grid(): pass
         if result == 5:  # b
-            #print(grid_obj.find_mle())
             grid_obj.reset_steps()
         if result == 6:  # c
             grid_obj.step_grid() #TODO: show direction
+        if result == 7:  # g
+            toggle_gt = False if toggle_gt else True
+        if result == 8:  # v
+            toggle_v = False if toggle_v else True
 
 
         # coloring cells
@@ -121,6 +131,25 @@ def create_grid(grid_obj):
             if grid_obj.step != path_step:
                 mle_path = grid_obj.find_mle()
             draw_path(grid, mle_path)
+
+        if toggle_gt:
+            draw_path(grid, gt_coords[:(grid_obj.step+2)], color=START, lt=1)
+
+        if toggle_v:
+            res = grid_obj.find_most_likely_paths()
+            first = True
+
+            if grid_obj.step != path_step:
+                v_coords = []
+                for point in res:
+                    v_coords.append(grid_obj.find_mle(point))
+
+            for vc in v_coords:
+                lt = 1
+                if first:
+                    first = False
+                    lt = 3
+                draw_path(grid, vc, lt=lt)
 
 
         grid.fill(BLOCKED, (0, GRID_HEIGHT, GRID_WIDTH, 200))
@@ -149,6 +178,8 @@ def do_key_events(key, grid, KEY_PRESSED):
     e = pygame.K_e  # 4
     b = pygame.K_b  # 5
     c = pygame.K_c  # 6
+    g = pygame.K_g  # 7
+    v = pygame.K_v  # 8
 
 
     
@@ -169,7 +200,7 @@ def do_key_events(key, grid, KEY_PRESSED):
         KEY_PRESSED[s] = True
         print("stepping:", grid.step, "-->", grid.step+1)
         return 2
-    elif not key[s] and KEY_PRESSED[s]: #checks let go of a
+    elif not key[s] and KEY_PRESSED[s]: #checks let go of s
         if DEBUG: print("s unpress")
         KEY_PRESSED[s] = False
         return -2
@@ -178,17 +209,25 @@ def do_key_events(key, grid, KEY_PRESSED):
         KEY_PRESSED[h] = True
         print("toggling heatmap")
         return 3
-    elif not key[h] and KEY_PRESSED[h]: #checks let go of a
+    elif not key[h] and KEY_PRESSED[h]: #checks let go of h
         if DEBUG: print("h unpress")
         KEY_PRESSED[h] = False
         return -3
 
+    if key[e] and not KEY_PRESSED[e]:
+        KEY_PRESSED[e] = True
+        print("going to end")
+        return 4
+    elif not key[e] and KEY_PRESSED[e]: #checks let go of e
+        if DEBUG: print("e unpress")
+        KEY_PRESSED[e] = False
+        return -4
 
     if key[b] and not KEY_PRESSED[b]:
         KEY_PRESSED[b] = True
         print("going to beginning")
         return 5
-    elif not key[b] and KEY_PRESSED[b]: #checks let go of a
+    elif not key[b] and KEY_PRESSED[b]: #checks let go of b
         if DEBUG: print("b unpress")
         KEY_PRESSED[b] = False
         return -5
@@ -197,10 +236,30 @@ def do_key_events(key, grid, KEY_PRESSED):
         #KEY_PRESSED[c] = True
         print("c-stepping:", grid.step, "-->", grid.step+1)
         return 6
-    elif not key[c] and KEY_PRESSED[c]: #checks let go of a
+    elif not key[c] and KEY_PRESSED[c]: #checks let go of c
         if DEBUG: print("c unpress")
         #KEY_PRESSED[c] = False
         return -6
+
+    if key[g] and not KEY_PRESSED[g]:
+        KEY_PRESSED[g] = True
+        print("toggle ground truth")
+        return 7
+    elif not key[g] and KEY_PRESSED[g]: #checks let go of g
+        if DEBUG: print("g unpress")
+        KEY_PRESSED[g] = False
+        return -7
+
+    if key[v] and not KEY_PRESSED[v]:
+        KEY_PRESSED[v] = True
+        print("toggle 10 mle")
+        return 8
+    elif not key[v] and KEY_PRESSED[v]: #checks let go of v
+        if DEBUG: print("v unpress")
+        KEY_PRESSED[v] = False
+        return -8
+
+
 
 '''
 fn color_cells - colors in cells on the grid based on terrain type
@@ -219,7 +278,7 @@ def color_cells(surf, grid, dims, heatmap=False):
         for i in range(0, len(lines)):
             for j in range(0, len(lines[i])):
                 cell_coord = (j*SQ_SZ, i*SQ_SZ, SQ_SZ, SQ_SZ)
-                p = (probs[i][j])**.5
+                p = (probs[i][j])**.25  # shows small probabilities more
 
                 fill_color = (int(p*255), 0, int((1-p)*128))
 
@@ -272,24 +331,20 @@ fn draw_path - draws path from starting cell to target cell
 '''
 
 
-def draw_path(surf, path, parents=None):
+def draw_path(surf, path, color=None, lt=3):
+    if color == None:
+        color = PATH
     if path == None:
         # no path exists
         # do something
         print("no path exists")
         return 0
 
-    if parents:
-        for r in range(len(parents)):
-            for c in range(len(parents[0])):
-                if parents[r][c]:
-                    draw_line(surf, (r, c), parents[r][c])
-
     for i in range(1, len(path)):
-        draw_line(surf, path[i-1], path[i], PATH, 3)
+        draw_line(surf, path[i-1], path[i], color, lt)
 
 
-def run_search(mode=True, filename=None, rand_state=None, heuristic=0, weight=1, s_type=0, ls=[1,2,3], w2=1, existing=None):
+def run_search(mode=True, filename=None, rand_state=None, existing=None):
     print("Setting up...")
 
 
@@ -302,7 +357,7 @@ def run_search(mode=True, filename=None, rand_state=None, heuristic=0, weight=1,
     if existing:
         g = existing
     else:
-        g = Grid(rows=120, cols=160, pathlength=100)
+        g = Grid(rows=120, cols=160, pathlength=100, rand_state=rand_state)
 
     create_grid(g)
 
@@ -315,8 +370,7 @@ if __name__ == '__main__':
     trs = ['r', 'r', 'd', 'd']
     obs = ['1', '1', 'a', 'a']
 
-    g = Grid(existing=gridA, path=(trs,obs))
-    #g = Grid(120, 160, rand_state=0)
+    #g = Grid(existing=gridA, path=(trs,obs))
+    g = Grid(100, 100, rand_state=1)
 
     run_search(existing=g)
-    #run_search(existing=g.grid)

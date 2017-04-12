@@ -7,6 +7,7 @@
 import random
 import copy
 import time
+from my_pq import My_PQ
 
 '''
 class Grid - class to encompass data representation of grid world and build
@@ -38,8 +39,8 @@ class Grid:
             self.grid = self.create_grid()
 
         if path != None:
-            self.actions = path[0]
-            self.observs = path[1]
+            self.actions = ''.join(path[0])
+            self.observs = ''.join(path[1])
             self.pathlength = len(path[0])
 
             self.start_cell = None
@@ -52,13 +53,14 @@ class Grid:
             self.observs = o
             self.pathlength = pathlength
 
-            self.start_cell = sc
+            self.start_cell = tuple(sc)
             self.gt_a = gta
             self.gt_o = gto
 
         self.probs = self.initialize_probabilities()
         self.most_likely = [["" for c in range(self.COLS)] for r in range(self.ROWS)]
         self.step = 0
+        self.most_likely_cell = None
 
         return
 
@@ -80,22 +82,38 @@ class Grid:
         return grid
 
     def viterbi(trans, obs, model_t, model_o):
+        #TODO: find most likely for each cell
         # only using observation model
         most_likely = []
 
         return
 
+    def find_most_likely_paths(self, paths=10):
+        pq = My_PQ()
+        most_probable = []
+        for r in range(self.ROWS):
+            for c in range(self.COLS):
+                pq.put( (-self.probs[r][c], (r,c)) )
+
+        for i in range(paths):
+            most_probable.append(pq.get()[1])
+        
+        return most_probable
+
+
+
     def step_grid(self):
         if self.step > self.pathlength - 1:
             print("Already at last step")
-            return
+            return 1
 
         self.eval_transition( self.actions[self.step])
         self.eval_observation(self.observs[self.step])
         self.normalize()
+        #print(self.most_likely_cell)
         self.step += 1
 
-        return
+        return 0
 
     def reset_steps(self):
         self.probs = self.initialize_probabilities()
@@ -219,11 +237,18 @@ class Grid:
 
     def normalize(self, EPSILON=-1):
         prob_sum = 0
+        max_prob = -1
+        max_cell = None
         #EPSILON = 1e-16
 
         for r in range(self.ROWS):
             for c in range(self.COLS):
                 prob_sum += self.probs[r][c]
+
+                if self.probs[r][c] > max_prob:
+                    max_prob = self.probs[r][c]
+                    max_cell = (r,c)
+        self.most_likely_cell = max_cell
 
         for r in range(self.ROWS):
             for c in range(self.COLS):
@@ -318,6 +343,9 @@ class Grid:
     def create_a_path(self, length, start_cell=None, interesting=True):
         # TODO: possibly create paths that don't include dir that came from, aka 'interesting paths'
         if start_cell == None:
+            start_cell = (random.randrange(self.ROWS-1), random.randrange(self.COLS-1))
+
+        while self.grid[start_cell[0]][start_cell[1]] == '0':  # blocked
             start_cell = [random.randrange(self.ROWS-1), random.randrange(self.COLS-1)]
 
         cell = [start_cell[0], start_cell[1]]
@@ -368,7 +396,7 @@ class Grid:
         return (start_cell, actions, observs, gt_a, gt_o)
 
 
-    def create_a_new_path(self, length, start_cell=None):
+    def create_a_new_path(self, length=100, start_cell=None):
         sc, a, o, gta, gto = self.create_a_path(length, start_cell)
 
         self.start_cell = sc
@@ -376,6 +404,11 @@ class Grid:
         self.observs = o
         self.gt_a = gta
         self.gt_o = gto
+
+        self.step = 0
+        self.probs = self.initialize_probabilities()
+        self.most_likely = [["" for c in range(self.COLS)] for r in range(self.ROWS)]
+        self.most_likely_cell = None
 
 
     '''
@@ -385,23 +418,37 @@ class Grid:
     def print_grid_to_file(self, filename):
         with open(filename, 'w') as file:
             # Print start and goal coordinates
-            file.write(str(self.cells[0]) + '\n')
-            file.write(str(self.cells[1]) + '\n\n')
+            if self.start_cell == None:
+                file.write(str((-1,-1)) + '\n')
+            else:
+                file.write(str(self.start_cell) + '\n')
 
-            # Print anchors in hard-to-traverse cells
-            file.write('hard-to-traverse centers: ' + '\n')
+            # Print ground truth
+            file.write('ground_truth:' + '\n')
+            if self.gt_a == None:
+                file.write('\n')
+            else:
+                file.write(self.gt_a + '\n')
 
-            for point in self.htt_cells:
-                file.write(str(point) + '\n')
+
+            # Print actions
+            file.write('actions:' + '\n')
+            file.write(self.actions + '\n')
+
+            # Print observations
+            file.write('observations:' + '\n')
+            file.write(self.observs + '\n')
+
 
             # Print data representation of the grid
-            file.write('grid: ' + '\n')
+            file.write('grid:' + '\n')
 
             for r in range(self.ROWS):
                 for c in range(self.COLS):
                     file.write(self.grid[r][c])
-
                 file.write('\n')
+
+        return
 
     def read_grid_from_file(filename):
         lines = []
@@ -412,21 +459,29 @@ class Grid:
 
         # Read in start and goal
         st = lines[0].replace('(', '').replace(')', '').split(',')
-        gl = lines[1].replace('(', '').replace(')', '').split(',')
 
         start = (int(st[0]), int(st[1]))
-        goal = (int(gl[0]), int(gl[1]))
-        cells = (start, goal)
 
-        htt_str = "hard-to-traverse centers:"
+        gt_str = "ground_truth:"
+        act_str = "actions:"
+        obs_str = "observations:"
         grid_str = "grid:"
 
-        # taking htt centers
-        htt_cells = []
-        for i in range(lines.index(htt_str)+1, lines.index(grid_str)):
+        # taking ground truth
+        gt_a = ''
+        for i in range(lines.index(gt_str)+1, lines.index(act_str)):
             line = lines[i]
-            htt = line.replace('(', '').replace(')', '').split(',')
-            htt_cells.append((int(htt[0]), int(htt[1])))
+            gt_a = line
+            #htt = line.replace('(', '').replace(')', '').split(',')
+            #htt_cells.append((int(htt[0]), int(htt[1])))
+        actions = ''
+        for i in range(lines.index(act_str)+1, lines.index(obs_str)):
+            line = lines[i]
+            actions = line
+        observs = ''
+        for i in range(lines.index(obs_str)+1, lines.index(grid_str)):
+            line = lines[i]
+            observs = line
 
         # Only take lines relating to grid
         grid_lines = lines[(lines.index(grid_str)+1):]
@@ -435,14 +490,44 @@ class Grid:
         terr = [[grid_lines[r][c] for c in range(COLS)] \
                 for r in range(ROWS)]
 
-        grid = Grid(ROWS,COLS)
+        grid = Grid(ROWS,COLS, existing = [])
 
         grid.grid = terr
-        grid.cells = cells
-        grid.htt_cells = htt_cells
+        grid.start_cell = start
+        grid.gt_a = gt_a
+        grid.gt_o = None
+        grid.actions = actions
+        grid.observs = observs
+
+        grid.pathlength = len(actions)
+        grid.probs = grid.initialize_probabilities()
 
         return grid
 
+
+    def gt_to_coords(self):
+        if self.start_cell == None:
+            print("No start cell found, use mle instead")
+            return []
+        
+        path = []
+        cell = list(self.start_cell)
+        path.append(self.start_cell)
+
+        for act in self.gt_a:
+            ro = 0
+            co = 0
+            if   act == '.': pass
+            elif act == 'u': ro -= 1
+            elif act == 'r': co += 1
+            elif act == 'd': ro += 1
+            elif act == 'l': co -= 1
+
+            cell[0] += ro
+            cell[1] += co
+            path.append(tuple(cell))
+
+        return path
 
 if __name__ == "__main__":
 
@@ -454,22 +539,27 @@ if __name__ == "__main__":
     obs = ['1', '1', 'a', 'a']
 
     g = Grid(existing = gridA, path=(trs,obs))
+    g.print_grid_to_file("existing_grid.txt")
+    g = Grid.read_grid_from_file('existing_grid.txt')
+
     g.print_grid(pretty_print=True)
     print(g.probs, "\n")
 
     for i in range(5):
         g.step_grid()
 
-    #    g.eval_transition(trs[i])
-    #    g.eval_observation(obs[i])
-    #    #g.eval_transition('d')
-    #    #g.eval_observation('a')
-    #    g.normalize()
         print(i, g.probs)
         print(g.most_likely)
 
-    #    print()
-    #print(g.find_mle((2,2)))
+    res = g.find_most_likely_paths(2)
+    print(res)
+
+    #g2 = Grid(rows=120, cols=160, rand_state=10, pathlength=100)
+    #g2.print_grid_to_file("test_grid.txt")
+    #g2 = Grid.read_grid_from_file("test_grid.txt")
+    #g2.print_grid(pretty_print=True)
+    #print(g2.gt_to_coords())
+
 
 
     #print()
