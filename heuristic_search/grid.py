@@ -58,7 +58,7 @@ def create_grid(grid_obj):
     is_init = pygame.display.get_init()
 
     # Set window title
-    pygame.display.set_caption('Heuristic search simulation')
+    pygame.display.set_caption('Prob. Pathfinding simulation')
 
 
     # Color cells by type
