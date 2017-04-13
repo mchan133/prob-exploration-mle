@@ -6,6 +6,7 @@
 
 import pygame
 import statistics
+from datetime import datetime
 
 from heuristic_search.gridfunctions import Grid
 #from gridfunctions import Grid
@@ -123,6 +124,9 @@ def create_grid(grid_obj):
             toggle_gt = False if toggle_gt else True
         if result == 8:  # v
             toggle_v = False if toggle_v else True
+        if result == 9:  # w
+            filename = "grid_" + datetime.now().strftime('%Y%m%d_%H:%M:%S') + ".txt"
+            grid_obj.print_grid_to_file(filename)
 
 
         # coloring cells
@@ -180,6 +184,7 @@ def do_key_events(key, grid, KEY_PRESSED):
     c = pygame.K_c  # 6
     g = pygame.K_g  # 7
     v = pygame.K_v  # 8
+    w = pygame.K_w  # 9
 
 
     
@@ -258,6 +263,15 @@ def do_key_events(key, grid, KEY_PRESSED):
         if DEBUG: print("v unpress")
         KEY_PRESSED[v] = False
         return -8
+
+    if key[w] and not KEY_PRESSED[w]:
+        KEY_PRESSED[w] = True
+        print("writing to file")
+        return 9
+    elif not key[w] and KEY_PRESSED[w]: #checks let go of w
+        if DEBUG: print("w unpress")
+        KEY_PRESSED[w] = False
+        return -9
 
 
 

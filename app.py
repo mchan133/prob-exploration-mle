@@ -50,6 +50,7 @@ if __name__ == '__main__':
           b - goto step 0\n\
           e - goto last step\n\
           v - show 10 most-likely explanations\n\
+          w - print grid to a file (uses current time)\n\
           esc - exit")
     print("====================================")
 
