@@ -40,6 +40,19 @@ if __name__ == '__main__':
         if len(sys.argv)==2 and sys.argv[1]=='help':
             sys.exit()
 
+    print("====================================")
+    print("Commands:\n\
+          s - step once\n\
+          c - continuous step (hold down)\n\
+          h - heatmap toggle\n\
+          a - toggle most-likely explanation\n\
+          g - toggle ground truth\n\
+          b - goto step 0\n\
+          e - goto last step\n\
+          v - show 10 most-likely explanations\n\
+          esc - exit")
+    print("====================================")
+
 
     for i in range(len(sys.argv)):
         if i == (len(sys.argv) - 1):
