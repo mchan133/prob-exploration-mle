@@ -7,7 +7,8 @@
 import random
 import copy
 import time
-from my_pq import My_PQ
+#from my_pq import My_PQ
+from heuristic_search.my_pq import My_PQ
 
 '''
 class Grid - class to encompass data representation of grid world and build
@@ -96,7 +97,8 @@ class Grid:
                 pq.put( (-self.probs[r][c], (r,c)) )
 
         for i in range(paths):
-            most_probable.append(pq.get()[1])
+            if pq.qsize() > 0:
+                most_probable.append(pq.get()[1])
         
         return most_probable
 
@@ -280,6 +282,7 @@ class Grid:
             return path
 
         for i in range(len(self.most_likely[0][0])-1, -1, -1):
+            if len(self.most_likely[r][c]) == 0: continue  # blocked cell
             prev = self.most_likely[r][c][i]
             path.append( (r,c) )
 
@@ -493,7 +496,7 @@ class Grid:
         grid = Grid(ROWS,COLS, existing = [])
 
         grid.grid = terr
-        grid.start_cell = start
+        if start != (-1,-1): grid.start_cell = start
         grid.gt_a = gt_a
         grid.gt_o = None
         grid.actions = actions
@@ -551,7 +554,7 @@ if __name__ == "__main__":
         print(i, g.probs)
         print(g.most_likely)
 
-    res = g.find_most_likely_paths(2)
+    res = g.find_most_likely_paths()
     print(res)
 
     #g2 = Grid(rows=120, cols=160, rand_state=10, pathlength=100)

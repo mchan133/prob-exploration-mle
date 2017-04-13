@@ -7,8 +7,8 @@
 import pygame
 import statistics
 
-#from heuristic_search.gridfunctions import Grid
-from gridfunctions import Grid
+from heuristic_search.gridfunctions import Grid
+#from gridfunctions import Grid
 
 
 # Some global constants
@@ -344,7 +344,7 @@ def draw_path(surf, path, color=None, lt=3):
         draw_line(surf, path[i-1], path[i], color, lt)
 
 
-def run_search(mode=True, filename=None, rand_state=None, existing=None):
+def run_search(rows=100, cols=100, plen=100, mode=True, filename=None, rand_state=None, existing=None):
     print("Setting up...")
 
 
@@ -355,9 +355,12 @@ def run_search(mode=True, filename=None, rand_state=None, existing=None):
     #    g = Grid.read_grid_from_file(filename)
 
     if existing:
+        print("using existing grid")
         g = existing
-    else:
-        g = Grid(rows=120, cols=160, pathlength=100, rand_state=rand_state)
+    elif mode:  # generated
+        g = Grid(rows, cols, pathlength=plen, rand_state=rand_state)
+    else:  # from file
+        g = Grid.read_grid_from_file(filename)
 
     create_grid(g)
 

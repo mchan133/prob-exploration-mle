@@ -14,18 +14,12 @@ usage: python app.py {mode pairs}
     default: False
 'gen'    [int(seed)|'None'] - generate grid from seed (None for random)
     default: None
-'heur'   [0-5]              - Use heuristic X (from 0 to 5)
-    default: 0
-'weight' [float >= 0]        - Weight the A* algorithm
-    default: 1
-'type'   ['seq'|'int']      - Type of algorithm
-    default: regular A*
-Only with the type arg:
-    'heurs' [heuristic string] - First heuristic should be admissible
-        default: '123'
-        NOTE: minimal error checking, be careful with input args
-    'w2'    [float >= 0]       - Bounding for inadmissible heuristics
-        default: 1
+'rows'   [int > 0]          - number of rows
+    default: 100
+'cols'   [int > 0]          - number of cols
+    default: 100
+'plen'   [int > 0]          - length of path
+    default: 100
 '''
 
 
@@ -33,11 +27,18 @@ if __name__ == '__main__':
     filename = None
     rand_state = None
     mode = True  # true=gen, false=file
-    heuristic = 0
-    weight = 1.0
-    s_type = 0
-    heurs = [1,2,3]
-    w2 = 1
+    rows = 100
+    cols = 100
+    pathlength = 100
+
+
+    if len(sys.argv) < 3:
+        print("====================================")
+        print(" usage: python app.py {mode pairs}\n 'file'   [filename]         - generate grid from file\n default: False\n 'gen'    [int(seed)|'None'] - generate grid from seed (None for random)\n default: None\n 'rows'   [int > 0]          - number of rows\n default: 100\n 'cols'   [int > 0]          - number of cols\n default: 100\n 'plen'   [int > 0]          - length of path\n default: 100 ")
+        print("====================================")
+
+        if len(sys.argv)==2 and sys.argv[1]=='help':
+            sys.exit()
 
 
     for i in range(len(sys.argv)):
@@ -52,37 +53,19 @@ if __name__ == '__main__':
             if sys.argv[i+1] != 'None':
                 rand_state = int(sys.argv[i+1])
 
-        if sys.argv[i] == 'heur':
-            if 0 <= int(sys.argv[i+1]) <= 5:  # valid heuristic
-                heuristic = int(sys.argv[i+1])
+        if sys.argv[i] == 'rows':
+            if 0 < int(sys.argv[i+1]):  # valid row
+                rows = int(sys.argv[i+1])
 
-        if sys.argv[i] == 'weight':
-            if 0 <= float(sys.argv[i+1]):  # valid weight
-                weight = float(sys.argv[i+1])
+        if sys.argv[i] == 'cols':
+            if 0 < int(sys.argv[i+1]):  # valid col
+                cols = int(sys.argv[i+1])
 
-        if sys.argv[i] == 'type':
-            s = sys.argv[i+1]
-            if s == 'seq':
-                s_type = 1
-            elif s == 'int':
-                s_type = 2
-
-        # minimal error checking
-        if sys.argv[i] == 'heurs':
-            s = sys.argv[i+1]
-            li = list(s)
-            ls = []
-            try:
-                for j in li:
-                    ls.append(int(j))
-                heurs = ls
-            except Exception:
-                pass
-
-        if sys.argv[i] == 'w2':
-            if 0 <= float(sys.argv[i+1]):  # valid weight
-                w2 = float(sys.argv[i+1])
+        if sys.argv[i] == 'plen':
+            if 0 < int(sys.argv[i+1]):  # valid length
+                pathlength = int(sys.argv[i+1])
 
 
 
-    run_search(mode, filename, rand_state, heuristic, weight, s_type, heurs, w2)
+    run_search(rows, cols, pathlength, mode, filename, rand_state, existing=None)
+    # if want existing, just write it to a file
